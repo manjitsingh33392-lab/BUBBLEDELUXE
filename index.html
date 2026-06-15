@@ -1,0 +1,299 @@
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<title>Bubble Pop Deluxe</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #6dd5fa, #2980b9);
+        overflow: hidden;
+        color: white;
+        text-align: center;
+    }
+
+    body::before,
+    body::after {
+        content: "";
+        position: fixed;
+        width: 250px;
+        height: 250px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.08);
+        pointer-events: none;
+        animation: floatBubble 12s ease-in-out infinite;
+    }
+
+    body::before {
+        top: 10%;
+        left: -80px;
+    }
+
+    body::after {
+        bottom: 10%;
+        right: -80px;
+        animation-delay: -6s;
+    }
+
+    h1 {
+        font-size: 3rem;
+        margin-bottom: 10px;
+        animation: titleGlow 3s ease-in-out infinite;
+    }
+
+    .stats {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-bottom: 25px;
+    }
+
+    .card {
+        padding: 12px 20px;
+        border-radius: 20px;
+        background: rgba(255,255,255,0.12);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        font-size: 1.2rem;
+    }
+
+    #bubble {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        border: none;
+        font-size: 75px;
+        cursor: pointer;
+        position: relative;
+
+        background: radial-gradient(
+            circle at 30% 30%,
+            rgba(255,255,255,0.95),
+            rgba(173,216,230,0.85),
+            rgba(0,140,255,0.8)
+        );
+
+        box-shadow:
+            inset -10px -10px 25px rgba(255,255,255,0.35),
+            inset 10px 10px 25px rgba(255,255,255,0.15),
+            0 10px 30px rgba(0,0,0,0.25);
+
+        transition: transform 0.15s;
+    }
+
+    #bubble::before {
+        content: "";
+        position: absolute;
+        inset: -18px;
+        border-radius: 50%;
+        background: rgba(0,180,255,0.45);
+        filter: blur(25px);
+        z-index: -1;
+        animation: glowPulse 2s ease-in-out infinite;
+    }
+
+    #bubble:hover {
+        transform: scale(1.08);
+    }
+
+    #bubble:active {
+        transform: scale(0.9);
+    }
+
+    .pop {
+        animation: pop 0.3s ease;
+    }
+
+    #startBtn {
+        margin-top: 25px;
+        padding: 12px 28px;
+        font-size: 1.1rem;
+        border: none;
+        border-radius: 30px;
+        cursor: pointer;
+        background: rgba(255,255,255,0.18);
+        color: white;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    #message {
+        margin-top: 15px;
+        font-size: 1.4rem;
+        font-weight: bold;
+    }
+
+    @keyframes pop {
+        0% { transform: scale(1); }
+        50% { transform: scale(0.7); }
+        100% { transform: scale(1); }
+    }
+
+    @keyframes glowPulse {
+        0%,100% {
+            opacity: 0.5;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: 1;
+            transform: scale(1.15);
+        }
+    }
+
+    @keyframes titleGlow {
+        0%,100% {
+            text-shadow: 0 0 10px rgba(255,255,255,0.4);
+        }
+
+        50% {
+            text-shadow:
+                0 0 20px rgba(255,255,255,0.8),
+                0 0 40px rgba(0,180,255,0.6);
+        }
+    }
+
+    @keyframes floatBubble {
+        0%,100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-30px);
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<h1>🫧 Bubble Pop Deluxe</h1>
+
+<div class="stats">
+    <div class="card">Score: <span id="score">0</span></div>
+    <div class="card">⏰ Time: <span id="timer">30</span>s</div>
+    <div class="card">🏆 High Score: <span id="highScore">0</span></div>
+</div>
+
+<button id="bubble">🫧</button>
+
+<button id="startBtn">▶ Start Game</button>
+
+<div id="message"></div>
+
+<script>
+let score = 0;
+let timeLeft = 30;
+let gameRunning = false;
+let timerInterval;
+
+const bubble = document.getElementById("bubble");
+const scoreEl = document.getElementById("score");
+const timerEl = document.getElementById("timer");
+const highScoreEl = document.getElementById("highScore");
+const startBtn = document.getElementById("startBtn");
+const message = document.getElementById("message");
+
+let highScore = localStorage.getItem("bubbleHighScore") || 0;
+highScoreEl.textContent = highScore;
+
+bubble.disabled = true;
+
+function playPopSound() {
+    const audio = new (window.AudioContext || window.webkitAudioContext)();
+
+    const osc = audio.createOscillator();
+    const gain = audio.createGain();
+
+    osc.connect(gain);
+    gain.connect(audio.destination);
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(400, audio.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(
+        180,
+        audio.currentTime + 0.08
+    );
+
+    gain.gain.setValueAtTime(0.2, audio.currentTime);
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audio.currentTime + 0.08
+    );
+
+    osc.start();
+    osc.stop(audio.currentTime + 0.08);
+}
+
+function startGame() {
+    score = 0;
+    timeLeft = 30;
+    gameRunning = true;
+
+    scoreEl.textContent = score;
+    timerEl.textContent = timeLeft;
+    message.textContent = "";
+
+    bubble.disabled = false;
+    startBtn.textContent = "🔄 Restart Game";
+
+    clearInterval(timerInterval);
+
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        timerEl.textContent = timeLeft;
+
+        if (timeLeft <= 0) {
+            endGame();
+        }
+    }, 1000);
+}
+
+function endGame() {
+    clearInterval(timerInterval);
+
+    gameRunning = false;
+    bubble.disabled = true;
+
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem("bubbleHighScore", highScore);
+        highScoreEl.textContent = highScore;
+
+        message.textContent =
+            "🎉 NEW HIGH SCORE: " + score + "!";
+    } else {
+        message.textContent =
+            "🛑 Game Over! Final Score: " + score;
+    }
+}
+
+function popBubble() {
+    if (!gameRunning) return;
+
+    score++;
+    scoreEl.textContent = score;
+
+    playPopSound();
+
+    bubble.classList.remove("pop");
+    void bubble.offsetWidth;
+    bubble.classList.add("pop");
+}
+
+bubble.addEventListener("click", popBubble);
+startBtn.addEventListener("click", startGame);
+</script>
+
+</body>
+</html>
+```
